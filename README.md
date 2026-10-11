@@ -1,5 +1,7 @@
 # Observatoire crypto — ETL Python local
 
+[Dépôt GitHub](https://github.com/Clemriv-prog/crypto-etl-dashboard) · [Guide technique et préparation aux entretiens (PDF)](docs/Guide_entretien_crypto_etl.pdf)
+
 Bitcoin, Ethereum et Solana : API CoinGecko → pandas → SQLite → indicateurs → Streamlit/Plotly.
 Le dashboard lit exclusivement SQLite. Une collecte manuelle fusionne les 180 derniers jours.
 Le projet est destiné à l'analyse descriptive et à la présentation d'une chaîne de données.
@@ -150,7 +152,9 @@ Le dépôt est initialisé localement. `git add` prépare les fichiers, `git com
 jalon ; `git status` vérifie les modifications et `git log --oneline` montre les étapes.
 L'identité d'auteur est passée aux commits avec `git -c user.name=... -c user.email=...` ;
 aucune configuration globale n'est modifiée. `.gitignore` exclut clés, données, bases,
-logs et environnement virtuel. **Aucun dépôt distant créé et aucun push effectué.**
-Après accord explicite seulement : créer un dépôt GitHub vide, puis `git remote add origin
-URL_DU_DEPOT` et `git push -u origin master`. Vérifier auparavant `git diff --cached`,
-`git ls-files`, et l'absence de secret dans l'historique. Le README et la CI sont prêts.
+logs et environnement virtuel. Le code a été publié sur accord explicite dans le dépôt
+public `Clemriv-prog/crypto-etl-dashboard`, branche `main`.
+Pour contribuer : cloner le dépôt, installer le projet et créer une branche dédiée.
+Vérifier `git diff --cached`, `git ls-files` et l'absence de secret avant chaque publication.
+Le guide PDF contient les explications, les formules, les limites, les exercices et une
+annexe des sources ; ses résultats de tests sont datés et ne remplacent pas l'onglet Actions.
