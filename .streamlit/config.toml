@@ -1,0 +1,7 @@
+[server]
+# Surveiller aussi les modules du paquet installé en mode éditable.
+folderWatchList = ["src"]
+runOnSave = true
+
+[browser]
+gatherUsageStats = false
