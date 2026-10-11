@@ -15,8 +15,11 @@ def transform(payload, coin, currency, days=180, now=None):
     start = today - pd.Timedelta(days=days)
     series = []
     duplicates = 0
-    for key, name in (("prices", "price"), ("market_caps", "market_cap"),
-                      ("total_volumes", "volume_24h")):
+    for key, name in (
+        ("prices", "price"),
+        ("market_caps", "market_cap"),
+        ("total_volumes", "volume_24h"),
+    ):
         part = pd.DataFrame(payload[key], columns=["source_timestamp", name])
         part["source_timestamp"] = pd.to_numeric(part["source_timestamp"], errors="coerce")
         part = part.dropna(subset=["source_timestamp"])
@@ -24,9 +27,11 @@ def transform(payload, coin, currency, days=180, now=None):
         part = part.drop_duplicates("source_timestamp", keep="last")
         series.append(part.set_index("source_timestamp"))
     frame = pd.concat(series, axis=1).reset_index()
-    frame["date_utc"] = pd.to_datetime(
-        frame["source_timestamp"], unit="ms", utc=True, errors="coerce"
-    ).dt.tz_localize(None).dt.normalize()
+    frame["date_utc"] = (
+        pd.to_datetime(frame["source_timestamp"], unit="ms", utc=True, errors="coerce")
+        .dt.tz_localize(None)
+        .dt.normalize()
+    )
     for column in ("price", "market_cap", "volume_24h"):
         frame[column] = pd.to_numeric(frame[column], errors="coerce")
         valid = np.isfinite(frame[column]) & (frame[column] >= 0)
@@ -37,7 +42,9 @@ def transform(payload, coin, currency, days=180, now=None):
     frame = frame.loc[~invalid & frame["date_utc"].between(start, today, inclusive="left")]
     frame = frame.sort_values("source_timestamp").drop_duplicates("date_utc", keep="last")
     frame = frame.sort_values("date_utc").reset_index(drop=True)
-    report = quality_report(frame, rejected, duplicates, excluded, start, today-pd.Timedelta(days=1))
+    report = quality_report(
+        frame, rejected, duplicates, excluded, start, today - pd.Timedelta(days=1)
+    )
     frame["coin_id"] = coin
     frame["vs_currency"] = currency
     return frame, report

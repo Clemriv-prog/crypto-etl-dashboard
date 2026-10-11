@@ -9,11 +9,11 @@ import requests
 
 def validate_payload(payload):
     if not isinstance(payload, dict):
-        raise ValueError("Réponse JSON non objet")
+        raise TypeError("Réponse JSON non objet")
     for key in ("prices", "market_caps", "total_volumes"):
         values = payload.get(key)
         if not isinstance(values, list):
-            raise ValueError(f"Série absente ou invalide : {key}")
+            raise TypeError(f"Série absente ou invalide : {key}")
         if any(not isinstance(p, (list, tuple)) or len(p) != 2 for p in values):
             raise ValueError(f"Paires invalides : {key}")
     return payload
@@ -24,7 +24,9 @@ def retry_delay(value, attempt):
         return max(0, float(value))
     except (TypeError, ValueError):
         try:
-            return max(0, (parsedate_to_datetime(value) - datetime.now(timezone.utc)).total_seconds())
+            return max(
+                0, (parsedate_to_datetime(value) - datetime.now(timezone.utc)).total_seconds()
+            )
         except (TypeError, ValueError, OverflowError):
             return min(2**attempt, 30)
 

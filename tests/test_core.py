@@ -16,14 +16,17 @@ from crypto_etl.transform import transform
 
 def payload(prices=(100, 105, 110), start="2024-01-01"):
     dates = pd.date_range(start, periods=len(prices), tz="UTC")
-    pairs = [[int(d.timestamp()*1000), p] for d, p in zip(dates, prices)]
-    return {"prices": pairs, "market_caps": [[t, 10] for t, _ in pairs],
-            "total_volumes": [[t, 20] for t, _ in pairs]}
+    pairs = [[int(d.timestamp() * 1000), p] for d, p in zip(dates, prices)]
+    return {
+        "prices": pairs,
+        "market_caps": [[t, 10] for t, _ in pairs],
+        "total_volumes": [[t, 20] for t, _ in pairs],
+    }
 
 
 @pytest.mark.parametrize("value", [None, [], {}, {"prices": [1]}])
 def test_bad_payload(value):
-    with pytest.raises(ValueError):
+    with pytest.raises((ValueError, TypeError)):
         validate_payload(value)
 
 
@@ -141,7 +144,7 @@ def test_network_retry_and_invalid_json():
 
 def test_partial_pipeline_preserves_data(tmp_path):
     config = Config(data_dir=tmp_path)
-    yesterday = (pd.Timestamp.now(tz="UTC").normalize()-pd.Timedelta(days=1)).strftime("%Y-%m-%d")
+    yesterday = (pd.Timestamp.now(tz="UTC").normalize() - pd.Timedelta(days=1)).strftime("%Y-%m-%d")
     first = run(config, lambda _: payload((100,), yesterday))
     assert first["status"] == "success"
 

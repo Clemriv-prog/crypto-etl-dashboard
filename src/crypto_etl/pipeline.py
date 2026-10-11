@@ -24,8 +24,10 @@ def run(config, fetch=None, demo=False):
     details, rows, successes = {}, 0, 0
     with connect(config.db_path(demo)) as db:
         with db:
-            db.execute("INSERT INTO pipeline_runs(run_id,started_at,status) VALUES (?,?,?)",
-                       (run_id, started, "running"))
+            db.execute(
+                "INSERT INTO pipeline_runs(run_id,started_at,status) VALUES (?,?,?)",
+                (run_id, started, "running"),
+            )
         for coin in config.coins:
             try:
                 payload = fetch(coin)
@@ -37,13 +39,17 @@ def run(config, fetch=None, demo=False):
                 details[coin] = {"status": "success", "quality": report}
                 rows += len(frame)
                 successes += 1
-            except Exception as error:
+            except Exception as error:  # noqa: BLE001 — isoler chaque crypto dans le pipeline
                 # Les exceptions externes peuvent contenir des secrets : ne pas les sérialiser.
                 details[coin] = {"status": "failed", "error_type": type(error).__name__}
                 logger.error("Collecte échouée pour %s (%s)", coin, type(error).__name__)
-        status = "success" if successes == len(config.coins) else "partial" if successes else "failed"
+        status = (
+            "success" if successes == len(config.coins) else "partial" if successes else "failed"
+        )
         with db:
-            db.execute("""UPDATE pipeline_runs SET ended_at=?, status=?, rows_processed=?,
+            db.execute(
+                """UPDATE pipeline_runs SET ended_at=?, status=?, rows_processed=?,
                        details=? WHERE run_id=?""",
-                       (utc_now(), status, rows, json.dumps(details), run_id))
+                (utc_now(), status, rows, json.dumps(details), run_id),
+            )
     return {"run_id": run_id, "status": status, "rows": rows, "details": details}

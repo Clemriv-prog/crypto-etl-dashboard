@@ -17,8 +17,11 @@ def main():
     config = load_config()
     if args.command == "update" and not config.api_key:
         parser.error("Définir COINGECKO_API_KEY ou utiliser la commande demo")
-    result = run(config, fetch=(lambda coin: synthetic(coin, config.days))
-                 if args.command == "demo" else None, demo=args.command == "demo")
+    result = run(
+        config,
+        fetch=(lambda coin: synthetic(coin, config.days)) if args.command == "demo" else None,
+        demo=args.command == "demo",
+    )
     print(json.dumps(result, indent=2, ensure_ascii=False))
     return 0 if result["status"] == "success" else 1
 

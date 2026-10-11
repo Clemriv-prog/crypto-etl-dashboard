@@ -28,25 +28,38 @@ def connect(path):
 def upsert(db, frame, collected_at):
     rows = []
     for row in frame.to_dict("records"):
-        rows.append((row["coin_id"], row["vs_currency"], row["date_utc"].strftime("%Y-%m-%d"),
-                     int(row["source_timestamp"]), float(row["price"]),
-                     None if pd.isna(row["market_cap"]) else float(row["market_cap"]),
-                     None if pd.isna(row["volume_24h"]) else float(row["volume_24h"]), collected_at))
+        rows.append(
+            (
+                row["coin_id"],
+                row["vs_currency"],
+                row["date_utc"].strftime("%Y-%m-%d"),
+                int(row["source_timestamp"]),
+                float(row["price"]),
+                None if pd.isna(row["market_cap"]) else float(row["market_cap"]),
+                None if pd.isna(row["volume_24h"]) else float(row["volume_24h"]),
+                collected_at,
+            )
+        )
     with db:
-        db.executemany("""
+        db.executemany(
+            """
         INSERT INTO daily_market_data VALUES (?,?,?,?,?,?,?,?)
         ON CONFLICT(coin_id, vs_currency, date_utc) DO UPDATE SET
         source_timestamp=excluded.source_timestamp, price=excluded.price,
         market_cap=excluded.market_cap, volume_24h=excluded.volume_24h,
         collected_at=excluded.collected_at
-        """, rows)
+        """,
+            rows,
+        )
 
 
 def read_data(path, currency):
     with connect(path) as db:
         return pd.read_sql_query(
             "SELECT * FROM daily_market_data WHERE vs_currency=? ORDER BY date_utc",
-            db, params=(currency,), parse_dates=["date_utc"],
+            db,
+            params=(currency,),
+            parse_dates=["date_utc"],
         )
 
 

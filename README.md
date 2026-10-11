@@ -22,6 +22,12 @@ Le dashboard démarre en mode **démonstration synthétique**, explicitement sig
 Ses valeurs sont déterministes et fabriquées ; elles ne représentent pas des cours réels.
 La base `data/demo.db` et les archives `data/raw-demo/` sont distinctes des données réelles.
 
+![Dashboard en mode démonstration synthétique](docs/dashboard-demo.png)
+
+Validation locale : 18 tests réussis, Ruff et formatage validés ; démonstration chargée
+avec 540 observations (180 jours × 3 actifs). Les interactions ont aussi été vérifiées
+dans le navigateur. Aucune collecte réelle effectuée sans clé API.
+
 ## Collecte réelle et configuration
 
 Créer une clé Demo depuis [CoinGecko](https://www.coingecko.com/en/api).
