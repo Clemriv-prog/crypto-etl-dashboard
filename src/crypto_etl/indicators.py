@@ -2,6 +2,8 @@
 
 import pandas as pd
 
+from .trends import trend_indicators
+
 
 def indicators(frame):
     parts = []
@@ -14,6 +16,7 @@ def indicators(frame):
         for window in (7, 30):
             daily[f"ma_{window}"] = price.rolling(window, min_periods=window).mean()
         daily["volatility_30d"] = daily["return_1d"].rolling(30, min_periods=30).std(ddof=1)
+        daily = daily.join(trend_indicators(price))
         parts.append(daily.reset_index())
     return pd.concat(parts, ignore_index=True) if parts else frame.copy()
 

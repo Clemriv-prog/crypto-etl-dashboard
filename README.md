@@ -24,7 +24,7 @@ La base `data/demo.db` et les archives `data/raw-demo/` sont distinctes des donn
 
 ![Dashboard en mode démonstration synthétique](docs/dashboard-demo.png)
 
-Validation locale : 18 tests réussis, Ruff et formatage validés ; démonstration chargée
+Validation locale : 22 tests réussis, Ruff et formatage validés ; démonstration chargée
 avec 540 observations (180 jours × 3 actifs). Les interactions ont aussi été vérifiées
 dans le navigateur. Aucune collecte réelle effectuée sans clé API.
 
@@ -99,6 +99,36 @@ Les indicateurs historiques sont calculés avant le filtre de dates ; base 100 e
 sont recalculés après filtrage. Les résultats indisponibles restent nuls. La volatilité
 nécessite 31 prix consécutifs. Le tableau indique la date du dernier prix de chaque actif ;
 si leurs dates diffèrent, les performances couvrent des observations différentes.
+
+## Tendances et motifs descriptifs
+
+La vue « Analyse d’une crypto » ajoute :
+
+| Mesure | Définition |
+|---|---|
+| Tendance 30 jours | régression linéaire du prix sur 30 dates consécutives |
+| Pente (%/jour) | `100 × pente / prix moyen de la fenêtre` |
+| R² | `1 − somme des résidus² / somme des écarts à la moyenne²` ; 0 pour prix constant |
+| Classe de tendance | haussière si pente > 0,1 %/jour et R² ≥ 0,5 ; baissière si pente < −0,1 et R² ≥ 0,5 ; sinon sans tendance linéaire nette |
+| RSI 14 | `100 − 100/(1 + gain moyen / perte moyenne)`, moyennes **simples** de 14 variations ; différent du RSI de Wilder |
+| Bandes de Bollinger | moyenne 20 jours ± 2 écarts-types des prix (`ddof=1`) |
+| Momentum 30 jours | `100 × (prix / prix à la date exacte 30 jours avant − 1)` |
+| Canal précédent | minimum et maximum des 20 prix quotidiens précédents, jour courant exclu |
+| Cassure | prix strictement supérieur/inférieur au canal précédent |
+| Croisement | différence MM7−MM30 passant de ≤0 à >0, ou de ≥0 à <0 |
+
+RSI = 100 si seuls des gains existent, 0 si seules des pertes existent, 50 si tous les
+prix de la fenêtre sont constants. Les premières fenêtres et celles comportant des trous
+restent indisponibles. Un croisement est un événement ponctuel, pas un état permanent.
+Le canal porte sur les snapshots quotidiens, pas sur les extrêmes intrajournaliers.
+
+Ces calculs utilisent seulement les données présentes et passées ; un test vérifie que
+l'ajout de prix futurs ne change pas les résultats antérieurs. Les seuils de tendance,
+RSI 30/70 et cassures sont des repères descriptifs, sans backtest ni probabilité de réussite.
+Un R² élevé décrit un ajustement passé ; il ne prouve pas la poursuite d'une tendance.
+Il n'y a pas de reconnaissance de chandeliers, doubles sommets ou tête-épaules dans cette
+version. Les courbes synthétiques de démonstration ont été fabriquées avec une sinusoïde :
+leurs motifs ne constituent pas une observation de marché.
 
 ## Vérification
 

@@ -78,11 +78,59 @@ with overview:
 with analysis:
     coin = st.selectbox("Actif", coins)
     subset = selected[selected.coin_id == coin]
+    last = subset.dropna(subset=["price"]).tail(1)
+    if not last.empty:
+        row = last.iloc[0]
+        st.subheader(f"Tendance observée : {row['trend']}")
+        st.caption(
+            "Régression sur les 30 derniers jours : hausse/baisse si pente supérieure "
+            "à ±0,1 % du prix moyen par jour et R² ≥ 0,5. Seuils descriptifs, "
+            "sans validation prédictive. Un motif détecté ne prédit pas le prochain prix."
+        )
+        st.dataframe(
+            last[
+                [
+                    "date_utc",
+                    "trend_slope_30d",
+                    "trend_r2_30d",
+                    "rsi_14",
+                    "momentum_30d",
+                    "breakout",
+                    "ma_cross",
+                ]
+            ],
+            hide_index=True,
+        )
     values = ["price", "ma_7", "ma_30"] if show_ma else ["price"]
     st.plotly_chart(
         px.line(subset, x="date_utc", y=values, title="Prix et moyennes mobiles"),
         use_container_width=True,
     )
+    st.plotly_chart(
+        px.line(
+            subset,
+            x="date_utc",
+            y=["price", "bollinger_lower", "bollinger_upper", "support_20d", "resistance_20d"],
+            title="Bandes de Bollinger et canal des 20 jours précédents",
+        ),
+        use_container_width=True,
+    )
+    rsi_chart = px.line(subset, x="date_utc", y="rsi_14", title="RSI 14 jours — moyennes simples")
+    rsi_chart.add_hline(y=30, line_dash="dot")
+    rsi_chart.add_hline(y=70, line_dash="dot")
+    rsi_chart.update_yaxes(range=[0, 100])
+    st.plotly_chart(rsi_chart, use_container_width=True)
+    events = subset.loc[
+        subset.breakout.isin(["Nouveau sommet 20 j", "Nouveau creux 20 j"])
+        | subset.ma_cross.isin(["Croisement haussier", "Croisement baissier"])
+    ]
+    with st.expander("Motifs repérés : cassures du canal et croisements"):
+        st.caption(
+            "Le canal exclut le jour observé. Les événements utilisent seulement "
+            "l'historique disponible à cette date. Les snapshots ne permettent pas "
+            "de détecter des figures de chandeliers OHLC."
+        )
+        st.dataframe(events[["date_utc", "price", "breakout", "ma_cross"]], hide_index=True)
     st.plotly_chart(
         px.bar(subset, x="date_utc", y="volume_24h", title="Volume observé sur 24 h"),
         use_container_width=True,
@@ -102,7 +150,13 @@ with comparison:
         ),
         use_container_width=True,
     )
-    st.dataframe(summary[columns + ["volatility_30d", "drawdown"]], hide_index=True)
+    st.dataframe(
+        summary[
+            columns
+            + ["volatility_30d", "drawdown", "trend", "rsi_14", "trend_r2_30d", "momentum_30d"]
+        ],
+        hide_index=True,
+    )
 st.download_button(
     "Exporter la sélection CSV",
     selected.to_csv(index=False).encode("utf-8"),

@@ -21,7 +21,7 @@ def test_dashboard_empty_and_demo(tmp_path, monkeypatch):
     app.run()
     assert not app.exception
     assert len(app.tabs) == 3
-    assert len(app.dataframe) == 2
+    assert len(app.dataframe) == 4
     app.sidebar.multiselect[0].set_value(["bitcoin"]).run()
     assert not app.exception
     assert len(app.dataframe[0].value) == 1
