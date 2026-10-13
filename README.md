@@ -1,5 +1,8 @@
 # Key Crypto - V1 : pipeline ETL et dashboard
 
+[Guide complet V1 : technique, apprentissage, CV et entretiens (PDF)](docs/Guide_Key_Crypto_V1.pdf)
+· [Version texte](docs/Guide_Key_Crypto_V1.md)
+
 Projet étudiant : collecter, nettoyer, stocker et comparer les données de Bitcoin,
 Ethereum et Solana. La V1 privilégie une chaîne simple à comprendre et à défendre
 en entretien : **CoinGecko → pandas → SQLite → Streamlit / Plotly**.
