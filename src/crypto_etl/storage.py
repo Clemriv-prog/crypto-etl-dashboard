@@ -1,7 +1,7 @@
 """Transactions SQLite : une crypto validée est chargée atomiquement."""
 
 import sqlite3
-from contextlib import contextmanager
+from contextlib import closing, contextmanager
 
 import pandas as pd
 
@@ -9,7 +9,7 @@ import pandas as pd
 @contextmanager
 def connect(path):
     path.parent.mkdir(parents=True, exist_ok=True)
-    with sqlite3.connect(path) as db:
+    with closing(sqlite3.connect(path)) as db, db:
         db.executescript("""
         CREATE TABLE IF NOT EXISTS daily_market_data (
             coin_id TEXT NOT NULL, vs_currency TEXT NOT NULL, date_utc TEXT NOT NULL,

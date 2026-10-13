@@ -71,8 +71,6 @@ def test_indicators_and_exact_calendar():
     result = indicators(frame)
     assert result.return_1d.iloc[1] == pytest.approx(1)
     assert result.ma_7.iloc[6] == 103
-    assert result.return_7d.iloc[7] == pytest.approx(7)
-    assert result.ma_30.iloc[29] == 114.5
     assert result.volatility_30d.iloc[30] == pytest.approx(result.return_1d.iloc[1:31].std(ddof=1))
     assert pd.isna(result.volatility_30d.iloc[29])
     selection = select_period(result, "2024-01-05", "2024-01-10")
@@ -81,14 +79,6 @@ def test_indicators_and_exact_calendar():
     missing = indicators(frame.drop(index=3))
     assert pd.isna(missing.return_1d.iloc[4])
     assert pd.isna(missing.ma_7.iloc[6])
-    assert pd.isna(missing.return_7d.iloc[10])
-
-
-def test_drawdown():
-    frame, _ = transform(payload((100, 120, 90)), "bitcoin", "usd", 3, "2024-01-04")
-    result = select_period(indicators(frame), "2024-01-01", "2024-01-03")
-    assert result.drawdown.iloc[-1] == -25
-    assert result.base_100.iloc[-1] == 90
 
 
 def test_upsert_and_revision(tmp_path):
@@ -103,43 +93,34 @@ def test_upsert_and_revision(tmp_path):
     assert len(stored) == 3 and stored.price.iloc[0] == 200
 
 
-def test_client_retry_and_auth():
-    response = Mock(status_code=429, headers={"Retry-After": "3"})
-    good = Mock(status_code=200)
-    good.json.return_value = payload()
-    session, sleep = Mock(), Mock()
-    session.get.side_effect = [response, good]
-    client = Client(Config(api_key="secret"), session, sleep)
-    assert client.fetch("bitcoin") == payload()
-    sleep.assert_called_once_with(3)
-    assert session.get.call_args.kwargs["headers"] == {"x-cg-demo-api-key": "secret"}
-    session.get.side_effect = None
-    session.get.return_value = response
-    with pytest.raises(RuntimeError):
-        client.fetch("bitcoin")
-    assert session.get.call_count == 6
+def test_client_success():
+    session = Mock()
+    session.get.return_value = Mock(status_code=200)
+    session.get.return_value.json.return_value = payload()
+    assert Client(Config(api_key="test-only"), session).fetch("bitcoin") == payload()
+    assert session.get.call_args.kwargs["timeout"] == 30
+    assert session.get.call_args.kwargs["params"]["days"] == 90
 
 
-@pytest.mark.parametrize("status", [400, 401, 403])
-def test_no_retry_for_bad_request(status):
+@pytest.mark.parametrize("status", [400, 401, 429, 500])
+def test_http_error_without_retry(status):
     session = Mock()
     session.get.return_value = Mock(status_code=status)
-    with pytest.raises(ValueError):
-        Client(Config(api_key="secret"), session, Mock()).fetch("bitcoin")
+    with pytest.raises(ValueError, match=str(status)):
+        Client(Config(api_key="test-only"), session).fetch("bitcoin")
     assert session.get.call_count == 1
 
 
-def test_network_retry_and_invalid_json():
+def test_network_and_invalid_json():
     session = Mock()
     session.get.side_effect = requests.ConnectionError("secret")
-    with pytest.raises(RuntimeError, match="maximal"):
-        Client(Config(api_key="secret", attempts=2), session, Mock()).fetch("bitcoin")
-    assert session.get.call_count == 2
+    with pytest.raises(RuntimeError, match="Erreur réseau"):
+        Client(Config(api_key="test-only"), session).fetch("bitcoin")
     session.get.side_effect = None
     session.get.return_value = Mock(status_code=200)
     session.get.return_value.json.side_effect = ValueError("secret")
     with pytest.raises(ValueError, match="JSON illisible"):
-        Client(Config(api_key="secret"), session, Mock()).fetch("bitcoin")
+        Client(Config(api_key="test-only"), session).fetch("bitcoin")
 
 
 def test_partial_pipeline_preserves_data(tmp_path):

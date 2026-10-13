@@ -5,7 +5,7 @@ import math
 import pandas as pd
 
 
-def synthetic(coin, days=180):
+def synthetic(coin, days=90):
     base = {"bitcoin": 50000, "ethereum": 2500, "solana": 100}[coin]
     dates = pd.date_range(
         end=pd.Timestamp.now(tz="UTC").normalize() - pd.Timedelta(days=1), periods=days, freq="D"

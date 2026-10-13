@@ -20,8 +20,8 @@ def test_dashboard_empty_and_demo(tmp_path, monkeypatch):
     assert run(config, synthetic, demo=True)["status"] == "success"
     app.run()
     assert not app.exception
-    assert len(app.tabs) == 3
-    assert len(app.dataframe) == 4
+    assert len(app.tabs) == 0
+    assert len(app.dataframe) == 1
     app.sidebar.multiselect[0].set_value(["bitcoin"]).run()
     assert not app.exception
     assert len(app.dataframe[0].value) == 1

@@ -1,6 +1,4 @@
-"""Interface exclusivement locale : aucun appel API à l'interaction."""
-
-import json
+"""Une page d'analyse ; les filtres consultent seulement SQLite."""
 
 import pandas as pd
 import plotly.express as px
@@ -10,14 +8,14 @@ from crypto_etl.config import load_config
 from crypto_etl.indicators import indicators, select_period
 from crypto_etl.storage import latest_run, read_data
 
-st.set_page_config(page_title="Observatoire crypto", page_icon="📈", layout="wide")
-st.title("Observatoire crypto")
+st.set_page_config(page_title="Key Crypto - V1", page_icon="📈", layout="wide")
+st.title("Key Crypto - V1")
+st.caption("Bitcoin, Ethereum et Solana : collecte, stockage et analyse quotidienne.")
 config = load_config()
 demo = st.sidebar.toggle("Démonstration synthétique", value=True)
 if demo:
-    st.warning("DÉMONSTRATION — données synthétiques, sans valeur de marché réelle.")
+    st.warning("DÉMONSTRATION : données synthétiques, sans valeur de marché réelle.")
 path = config.db_path(demo)
-st.caption(f"Devise : {config.currency.upper()} · snapshots quotidiens UTC · base : {path}")
 if not path.exists():
     st.info("Initialisez les données depuis le dossier du projet :")
     st.code("crypto-etl demo" if demo else "crypto-etl update")
@@ -30,23 +28,9 @@ run = latest_run(path)
 if run:
     st.caption(f"Dernière collecte : {run['ended_at']} · statut : {run['status']}")
     if run["status"] != "success":
-        st.warning(
-            "Mise à jour partielle ou échouée : les dernières données valides sont conservées."
-        )
-    reports = json.loads(run["details"])
-    if any(
-        v.get("quality", {}).get("missing_days")
-        or v.get("quality", {}).get("missing_market_cap")
-        or v.get("quality", {}).get("missing_volume")
-        or v.get("quality", {}).get("rejected")
-        for v in reports.values()
-    ):
-        st.warning("Données incomplètes ou rejetées : consultez le bilan qualité.")
-    with st.expander("Bilan de la dernière collecte"):
-        st.json(reports)
+        st.warning("Collecte incomplète : les anciennes données valides sont conservées.")
 today = pd.Timestamp.now(tz="UTC").normalize().tz_localize(None)
-latest = data.groupby("coin_id")["date_utc"].max()
-if (latest < today - pd.Timedelta(days=1)).any():
+if (data.groupby("coin_id").date_utc.max() < today - pd.Timedelta(days=1)).any():
     st.warning("Certaines données sont anciennes : relancez la collecte manuellement.")
 coins = st.sidebar.multiselect("Cryptomonnaies", config.coins, default=list(config.coins))
 dates = st.sidebar.date_input(
@@ -55,108 +39,53 @@ dates = st.sidebar.date_input(
     min_value=data.date_utc.min().date(),
     max_value=data.date_utc.max().date(),
 )
-show_ma = st.sidebar.checkbox("Moyennes mobiles", value=True)
-if len(dates) != 2 or not coins:
+if not coins or len(dates) != 2:
     st.info("Sélectionnez des cryptomonnaies et une période complète.")
     st.stop()
-calculated = indicators(data[data.coin_id.isin(coins)])
-selected = select_period(calculated, *dates)
+selected = select_period(indicators(data[data.coin_id.isin(coins)]), *dates)
 observed = selected.dropna(subset=["price"])
 if observed.empty:
-    st.info("Aucun prix disponible sur cette période.")
+    st.info("Aucun prix sur cette période.")
     st.stop()
-if selected["price"].isna().any():
-    st.warning("Des jours sont manquants ; les graphiques ne comblent pas les intervalles.")
-if selected["volatility_30d"].isna().any():
-    st.info("Certains indicateurs sont indisponibles : historique insuffisant ou jours manquants.")
-overview, analysis, comparison = st.tabs(["Vue d’ensemble", "Analyse d’une crypto", "Comparaison"])
-summary = observed.groupby("coin_id").tail(1).copy()
-summary["performance_pct"] = summary["base_100"] - 100
-columns = ["coin_id", "date_utc", "price", "return_1d", "return_7d", "performance_pct"]
-with overview:
-    st.dataframe(summary[columns], hide_index=True, use_container_width=True)
-with analysis:
-    coin = st.selectbox("Actif", coins)
-    subset = selected[selected.coin_id == coin]
-    last = subset.dropna(subset=["price"]).tail(1)
-    if not last.empty:
-        row = last.iloc[0]
-        st.subheader(f"Tendance observée : {row['trend']}")
-        st.caption(
-            "Régression sur les 30 derniers jours : hausse/baisse si pente supérieure "
-            "à ±0,1 % du prix moyen par jour et R² ≥ 0,5. Seuils descriptifs, "
-            "sans validation prédictive. Un motif détecté ne prédit pas le prochain prix."
-        )
-        st.dataframe(
-            last[
-                [
-                    "date_utc",
-                    "trend_slope_30d",
-                    "trend_r2_30d",
-                    "rsi_14",
-                    "momentum_30d",
-                    "breakout",
-                    "ma_cross",
-                ]
-            ],
-            hide_index=True,
-        )
-    values = ["price", "ma_7", "ma_30"] if show_ma else ["price"]
-    st.plotly_chart(
-        px.line(subset, x="date_utc", y=values, title="Prix et moyennes mobiles"),
-        use_container_width=True,
-    )
-    st.plotly_chart(
-        px.line(
-            subset,
-            x="date_utc",
-            y=["price", "bollinger_lower", "bollinger_upper", "support_20d", "resistance_20d"],
-            title="Bandes de Bollinger et canal des 20 jours précédents",
-        ),
-        use_container_width=True,
-    )
-    rsi_chart = px.line(subset, x="date_utc", y="rsi_14", title="RSI 14 jours — moyennes simples")
-    rsi_chart.add_hline(y=30, line_dash="dot")
-    rsi_chart.add_hline(y=70, line_dash="dot")
-    rsi_chart.update_yaxes(range=[0, 100])
-    st.plotly_chart(rsi_chart, use_container_width=True)
-    events = subset.loc[
-        subset.breakout.isin(["Nouveau sommet 20 j", "Nouveau creux 20 j"])
-        | subset.ma_cross.isin(["Croisement haussier", "Croisement baissier"])
-    ]
-    with st.expander("Motifs repérés : cassures du canal et croisements"):
-        st.caption(
-            "Le canal exclut le jour observé. Les événements utilisent seulement "
-            "l'historique disponible à cette date. Les snapshots ne permettent pas "
-            "de détecter des figures de chandeliers OHLC."
-        )
-        st.dataframe(events[["date_utc", "price", "breakout", "ma_cross"]], hide_index=True)
-    st.plotly_chart(
-        px.bar(subset, x="date_utc", y="volume_24h", title="Volume observé sur 24 h"),
-        use_container_width=True,
-    )
-    for name in ("volatility_30d", "drawdown"):
-        st.plotly_chart(
-            px.line(subset, x="date_utc", y=name, title=f"{name} (%)"), use_container_width=True
-        )
-with comparison:
-    st.plotly_chart(
-        px.line(
-            selected,
-            x="date_utc",
-            y="base_100",
-            color="coin_id",
-            title="Performance sur la sélection — base 100",
-        ),
-        use_container_width=True,
-    )
-    st.dataframe(
-        summary[
-            columns
-            + ["volatility_30d", "drawdown", "trend", "rsi_14", "trend_r2_30d", "momentum_30d"]
-        ],
-        hide_index=True,
-    )
+if selected.price.isna().any():
+    st.warning("Des jours sont manquants : les prix ne sont pas interpolés.")
+st.caption(f"Devise : {config.currency.upper()} · dates UTC · collecte : {config.days} jours")
+st.subheader("Dernières observations de la sélection")
+summary = observed.groupby("coin_id").tail(1)
+st.dataframe(
+    summary[["coin_id", "date_utc", "price", "return_1d", "volatility_30d"]],
+    hide_index=True,
+    width="stretch",
+)
+st.subheader("Comparaison des performances")
+st.plotly_chart(
+    px.line(
+        selected,
+        x="date_utc",
+        y="base_100",
+        color="coin_id",
+        title="Base 100 au premier prix disponible de la sélection",
+    ),
+    width="stretch",
+)
+coin = st.selectbox("Actif à analyser", coins)
+subset = selected[selected.coin_id == coin]
+st.plotly_chart(
+    px.line(
+        subset, x="date_utc", y=["price", "ma_7"], title="Prix observé et moyenne mobile 7 jours"
+    ),
+    width="stretch",
+)
+st.plotly_chart(
+    px.line(
+        subset, x="date_utc", y="volatility_30d", title="Volatilité 30 jours - non annualisée (%)"
+    ),
+    width="stretch",
+)
+st.caption(
+    "La moyenne exige 7 prix consécutifs ; la volatilité exige 31 prix pour 30 rendements. "
+    "Les premiers résultats indisponibles restent vides. Les indicateurs décrivent le passé."
+)
 st.download_button(
     "Exporter la sélection CSV",
     selected.to_csv(index=False).encode("utf-8"),
@@ -164,6 +93,6 @@ st.download_button(
     mime="text/csv",
 )
 st.caption(
-    "Prix observés, sans clôture officielle. Volume 24 h non cumulable. "
+    "Prix observés, sans clôture officielle. "
     "Source des collectes réelles : [CoinGecko](https://www.coingecko.com/)."
 )
